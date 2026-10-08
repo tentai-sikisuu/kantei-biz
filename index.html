@@ -568,6 +568,8 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
   <div class="loading" id="loading">天体を読み解いています…</div>
 
   <div id="result">
+  <div id="calc-warn" style="display:none;margin-bottom:18px;padding:12px 14px;border:1px solid #e8c46a;border-radius:4px;background:rgba(232,196,106,0.12);color:#f3dc9a;font-size:12.5px;line-height:1.8;"></div>
+  <style>@media print{#calc-warn{display:none !important;}}</style>
     <div class="card">
       <div class="card-title" id="client-title">鑑定結果</div>
       <!-- 天体色数図 + 3色数バッジ -->
@@ -860,6 +862,26 @@ async function autoCalcAndRun(){
     // 鑑定実行
     calculate();
 
+    // ===== 注意表示（鑑定書には印刷されない、作成者向けのメモ） =====
+    (function(){
+      var notes=[];
+      if(String(geo.name||'').indexOf('（日本・概算）')>-1){
+        notes.push('⚠ 出生地「'+bplace+'」が見つからなかったため、日本時間で計算しています。海外生まれの方は結果がずれることがあります。');
+      } else if(geo.japan===false){
+        notes.push('⚠ 海外生まれの方は、サマータイムの時期に生まれていると1時間ずれて計算されることがあります。月星座などが星座の境目にないか確認してください。');
+      }
+      if(!btimeRaw){
+        var a=calcPlanetsAstroEngine(year,month,day,0,0,lat,lon,tzOffset).Moon, z=calcPlanetsAstroEngine(year,month,day,23,59,lat,lon,tzOffset).Moon;
+        if(a!==z){
+          var sw=0; for(var h=0;h<24;h++){ if(calcPlanetsAstroEngine(year,month,day,h,59,lat,lon,tzOffset).Moon!==a){ sw=h; break; } }
+          var ja=function(s){ var o=OUTER_RING_CW.find(function(x){return x.sign===s;}); return o?o.ja:s; };
+          notes.push('⚠ この日は'+sw+'時台に月星座が'+ja(a)+'→'+ja(z)+'へ切り替わります。出生時刻を入れると正確になります（今は12時で計算）。');
+        }
+      }
+      var w=document.getElementById('calc-warn');
+      if(w){ w.innerHTML=notes.map(function(t){return '<div>'+t+'</div>';}).join(''); w.style.display=notes.length?'block':'none'; }
+    })();
+
   }catch(e){
     document.getElementById('auto-loading').style.display='none';
     document.getElementById('auto-btn').disabled=false;
@@ -992,6 +1014,7 @@ function getSignInfo(sign){
 }
 
 function calculate(){
+  var _w=document.getElementById('calc-warn'); if(_w){ _w.style.display='none'; _w.innerHTML=''; }
   const birthdate=getBirthdate();
   const clientname=document.getElementById('clientname').value;
   const targetYear=parseInt(document.getElementById('target-year').value);
@@ -2974,7 +2997,7 @@ geocode=function(place){
     const t=document.getElementById('birth-time').value.split(':'), h=t[0]?+t[0]:12;
     if(japanDST(y,m,d,h)) tz=10;
   }
-  return Promise.resolve({lat:g.lat,lon:g.lon,tz:tz,name:g.label});
+  return Promise.resolve({lat:g.lat,lon:g.lon,tz:tz,name:g.label,japan:g.japan});
 };
 
 (function(){
@@ -3031,7 +3054,7 @@ geocode=function(place){
 
 <script>
 // ===== バージョン管理（ツールを改定したら TOOL_VERSION を上げる） =====
-var TOOL_VERSION = '2026.10.9.4';
+var TOOL_VERSION = '2026.10.9.5';
 var TOOL_SOURCE_URL = '';/*@@SRC@@*/   // ← パソコンに保存した時に、元のURLが自動で書き込まれる
 var TOOL_FILE_NAME = '鑑定書ツール_ビジネス鑑定.html';
 (function(){
